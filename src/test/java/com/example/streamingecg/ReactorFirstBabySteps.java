@@ -4,6 +4,7 @@ import org.junit.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.test.StepVerifier;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,9 +15,10 @@ public class ReactorFirstBabySteps {
     public void createMono() {
         Mono.just(1)
             .map(s -> s * 5)
-            .log();
+            .log()
+            .subscribe(System.out::println);
 
-        // where is my output?
+        // without subscription, pipeline is not executed
     }
 
     @Test
@@ -35,11 +37,16 @@ public class ReactorFirstBabySteps {
 
     @Test
     public void createFluxWithMap() {
-        Flux.just(1, 2, 3)
-            .map(s -> s * s)
-            .log();
+        Flux<Integer> numbersSquared = Flux.just(1, 2, 3)
+                                .map(s -> s * s)
+                                .log();
 
-        // how to assert on values?
+        // let's use StepVerifier
+        StepVerifier.create(numbersSquared)
+                    .expectNext(1)
+                    .expectNext(4)
+                    .expectNext(9)
+                    .verifyComplete();
     }
 
     @Test
@@ -60,11 +67,14 @@ public class ReactorFirstBabySteps {
     @Test
     public void createFluxFromIterable() {
         List<String> strings = Arrays.asList("hello", "meetup", "@", "it.roche.pl", "!");
-        Flux.fromIterable(strings)
-            .log()
-            .map(String::toUpperCase)
-            .reduce((s1, s2) -> s1 + " " + s2)
-            .subscribe(System.out::println);
+        Mono<String> reduced = Flux.fromIterable(strings)
+                                  .log()
+                                  .map(String::toUpperCase)
+                                  .reduce((s1, s2) -> s1 + " " + s2);
+
+        StepVerifier.create(reduced)
+                    .expectNext("HELLO MEETUP @ IT.ROCHE.PL !")
+                    .verifyComplete();
     }
 
     @Test
@@ -78,12 +88,15 @@ public class ReactorFirstBabySteps {
     @Test
     public void blockingFluxScheduledOnAnotherThread() {
         // called on calling thread
-        Mono.fromCallable(ReactorFirstBabySteps::blockingString)
-            .subscribeOn(Schedulers.elastic())
-            .log()
-            .subscribe(System.out::println);
+        Mono<String> log = Mono.fromCallable(ReactorFirstBabySteps::blockingString)
+                               .subscribeOn(Schedulers.elastic())
+                               .log();
 
-        // where is my output?
+        // Since our stream is asynchronous and non-blocking, test thread finishes. Use Thread.sleep()
+        // Thread.sleep(1000);
+
+        // or better yet use StepVerifier, which will block, awaiting the result
+        StepVerifier.create(log).expectNext("blocking result").verifyComplete();
     }
 
     private static String blockingString() throws InterruptedException {
