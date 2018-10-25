@@ -19,6 +19,7 @@ public class EcgReactiveService {
 
         return Flux.fromIterable(sampleEcgData)
                    .delayElements(Duration.ofMillis(1000 / EcgGenerator.SAMPLING_FREQ))
+                   .sample(Duration.ofMillis(20))
                    .repeat()
                    .map(EcgReactiveService::withTimestamp)
                    .doFinally(signalType -> log.info("Stream completed with signalType {}...", signalType));
