@@ -16,12 +16,15 @@ import java.util.Date;
 @Slf4j
 public class EcgReactiveService {
 
-    public static final Scheduler GENERATORS_POOL = Schedulers.newParallel("generators-pool");
+    private static final Scheduler GENERATORS_POOL = Schedulers.newParallel("generators-pool");
 
     public Flux<EcgUnit> createInfiniteEcgStream() {
-        Flux<EcgUnit> ecgUnitFlux = Mono.defer(() -> Mono.fromCallable(() -> new EcgGenerator().generate())
-                                                         .subscribeOn(GENERATORS_POOL)
-        ).flatMapMany(Flux::fromIterable);
+        Flux<EcgUnit> ecgUnitFlux = Mono
+                .defer(() -> Mono.fromCallable(() -> new EcgGenerator().generate())
+                                 .subscribeOn(GENERATORS_POOL)
+                )
+                .cache()
+                .flatMapMany(Flux::fromIterable);
 
         return ecgUnitFlux
                    .delayElements(Duration.ofMillis(1000 / EcgGenerator.SAMPLING_FREQ))
